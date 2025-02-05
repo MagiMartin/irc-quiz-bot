@@ -19,12 +19,11 @@ NICK = "Butt_BOT"
 IDENT = "Bot_BOT_test"
 REALNAME = "Bot_BOT"
 CHANNEL = "#Trivia"
+Flag = False
 
 readbuffer = ""
 s=socket.socket( )
 s.connect((HOST, PORT))
-
-
 
 async def main():
 	s.send(bytes("NICK %s\r\n" % NICK, "UTF-8"))
@@ -58,18 +57,21 @@ class CountdownTask:
                     word_list[word_index[counter_int]] = word_char[word_index[counter_int]]
                     counter_int +=1
             else:
-                counter_int = counter_int
+                counter_int = len(word_list)
+                self.terminate()
+                break
 
-            for char in word_list:
-                word_hint = word_hint + char
-            word_hint = ":" + word_hint
+            if counter_int != len(word_list):
+                for char in word_list:
+                    word_hint = word_hint + char
+                word_hint = ":" + word_hint
 
-            s.send(bytes("PRIVMSG %s %s \r\n" % (CHANNEL, word_hint), "UTF-8"))
-            if points >= 0:
-                points = points - 1
-            else:
-                points = points
-            del word_hint
+                s.send(bytes("PRIVMSG %s %s \r\n" % (CHANNEL, word_hint), "UTF-8"))
+                if points >= 0:
+                    points = points - 1
+                else:
+                    points = points
+                del word_hint
 
 def point_calc(winners,points):
 
@@ -89,7 +91,7 @@ def point_calc(winners,points):
         d[key] = sum(map(int, d[key]))
     #print(d)
 
-    db_connect.score_update(d)
+    #db_connect.score_update(d)
 
 
 def quiz():
@@ -141,6 +143,19 @@ def quiz():
 
       readb = ""
       readb = readb+s.recv(1024).decode("UTF-8")
+
+      if "!stop" in readb:
+          c.terminate()
+          break
+
+      if c._running == False:
+          sry_msg = ":" + "Sorry no points for you. Answer " + answer
+          s.send(bytes("PRIVMSG %s %s \r\n" % (CHANNEL, sry_msg), "UTF-8"))
+          turn += 1
+          c.terminate()
+          secret_word = ""
+
+
       temp = str.split(readb, "\n")
       readb=temp.pop( )
 
@@ -150,6 +165,7 @@ def quiz():
 
           if(lineb[0] == "PING"):
               s.send(bytes("PONG %s\r\n" % lineb[1], "UTF-8"))
+
 
       if(lineb[1] == "PRIVMSG" and lineb[2] == CHANNEL):
           guess = ' '.join(lineb[3:])
@@ -163,7 +179,6 @@ def quiz():
               c.terminate()
               secret_word = ""
               time.sleep(5.0)
-
 
   mssg_end = ":" + "The end (Of the quiz)"
   point_calc(winner_list,point_list)
@@ -185,7 +200,6 @@ def key_check(key):
         return function_dict[key]()
     else:
         return "Wrong_Command"
-
 
 while 1:
     readbuffer = readbuffer+s.recv(1024).decode("UTF-8")
